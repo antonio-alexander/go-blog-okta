@@ -1,0 +1,21 @@
+version: "3"
+services:
+
+  example:
+    container_name: example
+    hostname: example
+    image: ghcr.io/antonio-alexander/go-blog-okta:latest
+    ports:
+      - "8080:8080"
+    build:
+      context: ./
+      dockerfile: ./cmd/Dockerfile
+      args:
+        PLATFORM: ${PLATFORM:-linux/amd64}
+        GO_ARCH: ${GO_ARCH:-amd64}
+        GO_ARM: ${GO_ARM:-7}
+    environment:
+      OKTA_OAUTH2_REDIRECT_URI: ${OKTA_OAUTH2_REDIRECT_URI}
+      OKTA_OAUTH2_CLIENT_ID: ${OKTA_OAUTH2_CLIENT_ID}
+      OKTA_OAUTH2_CLIENT_SECRET: ${OKTA_OAUTH2_CLIENT_SECRET}
+      OKTA_OAUTH2_ISSUER: ${OKTA_OAUTH2_ISSUER}
