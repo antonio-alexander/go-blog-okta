@@ -1,4 +1,4 @@
-# go-blog-okta (github.com/antonio-alexander/go-blog-kafka)
+# go-blog-okta (github.com/antonio-alexander/go-blog-okta)
 
 The purpose of this repository is to attempt to distill what I've learned about Okta and how to create an incredibly basic implementation. It's based on the [okta-gin-sample](https://github.com/okta-samples/okta-go-gin-sample); sans the gin...a virgin okta-go-sample if you will. I think [gin web framework](https://github.com/gin-gonic/gin) is incredible, it simplifies a lot, for better or for worse.
 
