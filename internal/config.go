@@ -12,17 +12,18 @@ const (
 // the example code; it contains configuratio nfor the web server and the
 // Okta/OAuth configuration
 type Configuration struct {
-	*oauth2.Config
-	Issuer      string
-	RedirectUri string
+	oauth2.Config
 	Address     string
 	Port        string
+	Issuer      string
+	RedirectUri string
+	Audience    string
 }
 
 // NewConfiguration can be used to create a new instance
 // of Configuration with the internal pointers created
 func NewConfiguration() *Configuration {
-	c := &Configuration{Config: new(oauth2.Config)}
+	c := &Configuration{}
 	c.Default()
 	return c
 }
@@ -36,7 +37,7 @@ func (c *Configuration) Default() {
 	c.RedirectURL = defaultRedirectUri
 	c.Address = defaultAddress
 	c.Port = defaultPort
-	c.Scopes = []string{"openid", "profile", "email"}
+	c.Scopes = []string{"openid", "profile", "email", "offline_access"}
 	c.Endpoint.AuthStyle = oauth2.AuthStyleInParams
 	c.RedirectURL = defaultRedirectUri
 }
@@ -47,18 +48,21 @@ func (c *Configuration) FromEnvs(envs map[string]string) {
 	if c == nil {
 		return
 	}
-	if s, ok := envs["OKTA_OAUTH2_REDIRECT_URI"]; ok && s != "" {
+	if s, ok := envs["OKTA_OAUTH2_REDIRECT_URI"]; ok {
 		c.RedirectURL = s
 	}
-	if s, ok := envs["OKTA_OAUTH2_CLIENT_ID"]; ok && s != "" {
+	if s, ok := envs["OKTA_OAUTH2_CLIENT_ID"]; ok {
 		c.ClientID = s
 	}
-	if s, ok := envs["OKTA_OAUTH2_CLIENT_SECRET"]; ok && s != "" {
+	if s, ok := envs["OKTA_OAUTH2_CLIENT_SECRET"]; ok {
 		c.ClientSecret = s
 	}
-	if s, ok := envs["OKTA_OAUTH2_ISSUER"]; ok && s != "" {
+	if s, ok := envs["OKTA_OAUTH2_AUDIENCE"]; ok {
+		c.Audience = s
+	}
+	if s, ok := envs["OKTA_OAUTH2_ISSUER"]; ok {
 		c.Issuer = s
-		c.Endpoint.AuthURL = s + "/v1/authorize"
-		c.Endpoint.TokenURL = s + "/v1/token"
+		c.Endpoint.AuthURL = s + "/authorize"
+		c.Endpoint.TokenURL = s + "/oauth/token"
 	}
 }

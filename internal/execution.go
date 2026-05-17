@@ -1,10 +1,11 @@
 package internal
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
-
-	verifier "github.com/okta/okta-jwt-verifier-golang"
 )
 
 // readCookie can be used to read the value for a given cookie
@@ -41,25 +42,6 @@ func deleteCookie(w http.ResponseWriter, key string) {
 	})
 }
 
-// verifyToken can be used to verify a given access token and output
-// a verifier and error
-func verifyToken(config *Configuration, accessToken string) (*verifier.Jwt, error) {
-	jv := verifier.JwtVerifier{
-		Issuer: config.Issuer,
-		ClaimsToValidate: map[string]string{
-			"aud": config.ClientID,
-		},
-	}
-	result, err := jv.New().VerifyIdToken(accessToken)
-	switch {
-	case err != nil:
-		return nil, err
-	case result == nil:
-		return nil, fmt.Errorf("token could not be verified")
-	}
-	return result, nil
-}
-
 // handleError can be used to output an error and status code
 // when an error occurs
 func handleError(w http.ResponseWriter, err error, statusCodes ...int) {
@@ -69,4 +51,39 @@ func handleError(w http.ResponseWriter, err error, statusCodes ...int) {
 	}
 	w.WriteHeader(statusCode)
 	_, _ = w.Write([]byte(err.Error()))
+}
+
+func revokeRefreshToken(ctx context.Context, config *Configuration, refreshToken string) error {
+	byts, err := json.Marshal(struct {
+		ClientId     string `json:"client_id"`
+		ClientSecret string `json:"client_secret"`
+		Token        string `json:"token"`
+	}{
+		ClientId:     config.ClientID,
+		ClientSecret: config.ClientSecret,
+		Token:        refreshToken,
+	})
+	if err != nil {
+		return err
+	}
+	url := config.Issuer + "/oauth/revoke"
+	req, err := http.NewRequestWithContext(ctx,
+		http.MethodPost, url, bytes.NewBuffer(byts))
+	if err != nil {
+		return err
+	}
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Accept", "application/json")
+	client := &http.Client{}
+	response, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	switch response.StatusCode {
+	default:
+		return fmt.Errorf("unexepcted status code: %d", response.StatusCode)
+	case http.StatusOK:
+		return nil
+	}
 }

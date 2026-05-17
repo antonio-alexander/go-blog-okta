@@ -1,11 +1,13 @@
 package internal
 
 import (
+	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"sync"
 	"time"
+
+	"github.com/coreos/go-oidc/v3/oidc"
 )
 
 // launchServer will execute a go routine to house the web server, it'll
@@ -31,7 +33,7 @@ func launchServer(wg *sync.WaitGroup, server *http.Server) error {
 
 // Main will execute the general business logic for the example
 // all environmental components are provided as arguments
-func Main(pwd string, args []string, envs map[string]string, chSignalInt chan os.Signal) error {
+func Main(ctx context.Context, pwd string, args []string, envs map[string]string) error {
 	var wg sync.WaitGroup
 
 	fmt.Println("============================================")
@@ -46,23 +48,35 @@ func Main(pwd string, args []string, envs map[string]string, chSignalInt chan os
 	config.Default()
 	config.FromEnvs(envs)
 
+	// create oidc provider
+	provider, err := oidc.NewProvider(ctx, config.Issuer+"/")
+	if err != nil {
+		return err
+	}
+
+	//get public keys for token verification
+	fmt.Printf("discovered JWKS URL: %s\n", provider.Endpoint().AuthURL) // Or use custom JWKS logic
+
 	//create server/router and set handlers
 	router := http.NewServeMux()
 	server := &http.Server{
 		Handler: router,
 		Addr:    config.Address + ":" + config.Port,
 	}
-	router.HandleFunc("/", indexHandler())
+	router.HandleFunc("/", indexHandler(provider, config.Config))
 	router.HandleFunc("/login", loginHandler(config))
-	router.HandleFunc("/authorization-code/callback", callbackHandler(config))
-	router.HandleFunc("/callback", callbackHandler(config))
-	router.HandleFunc("/logout", logoutHandler())
+	router.HandleFunc("/refreshing", refreshingHandler(config))
+	router.HandleFunc("/verify", verifyHandler(provider, config.Config))
+	router.HandleFunc("/authorization-code/callback", callbackHandler(provider, config))
+	router.HandleFunc("/callback", callbackHandler(provider, config))
+	router.HandleFunc("/api", apiHandler(ctx, config))
+	router.HandleFunc("/logout", logoutHandler(config))
 
 	//launch the server and wait for a ctrl+c
 	if err := launchServer(&wg, server); err != nil {
 		return err
 	}
-	<-chSignalInt
+	<-ctx.Done()
 
 	//close the server and wait for all the web server
 	// go routine to return

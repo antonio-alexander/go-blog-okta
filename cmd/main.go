@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -14,7 +15,7 @@ import (
 func init() {
 	//this is janky, but it's here to simplify configuration so you
 	// don't accidentally commit secrets
-	if err := godotenv.Load("../.okta.env", ".env"); err != nil {
+	if err := godotenv.Load(".okta.env"); err != nil {
 		fmt.Printf("error while godotenv.Load(): %s\n", err)
 	}
 }
@@ -24,15 +25,14 @@ func main() {
 	args := os.Args[1:]
 	envs := make(map[string]string)
 	for _, env := range os.Environ() {
-		if s := strings.Split(env, "="); len(s) > 1 {
-			envs[s[0]] = strings.Join(s[1:], "=")
+		if key, value, ok := strings.Cut(env, "="); ok && value != "" {
+			envs[key] = value
 		}
 	}
-	chSignalInt := make(chan os.Signal, 1)
-	signal.Notify(chSignalInt, os.Interrupt)
-	if err := internal.Main(pwd, args, envs, chSignalInt); err != nil {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+	if err := internal.Main(ctx, pwd, args, envs); err != nil {
 		os.Stderr.WriteString(err.Error() + "\n")
 		os.Exit(1)
 	}
-	close(chSignalInt)
 }

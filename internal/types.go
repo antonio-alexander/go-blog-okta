@@ -2,6 +2,8 @@ package internal
 
 const (
 	cookieKeyAccessToken       string = "access_token"
+	cookieKeyRefreshToken      string = "refresh_token"
+	cookieKeyRawIdtoken        string = "raw_id_token"
 	cookieKeyOAuthState        string = "oauth_state"
 	cookieKeyOAuthCodeVerifier string = "oauth_code_verifier"
 )
